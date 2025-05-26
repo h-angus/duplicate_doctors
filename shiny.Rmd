@@ -1,0 +1,123 @@
+---
+title: "Doctor Duplicate Review"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    self_contained: true
+    theme: 
+      version: 4
+      bootswatch: flatly
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(DT)
+library(dplyr)
+load("data/combined_doctors.RData")
+
+# Load confirmed status if available
+status <- list()
+if (file.exists("data/confirmed_status.RData")) {
+  load("data/confirmed_status.RData")
+}
+
+# Format group_id safely and apply saved checkbox state
+combined_doctors_display <- combined_doctors %>%
+  mutate(group_id = paste0("Group ", group_id)) %>%
+  group_by(group_id) %>%
+  mutate(Confirmed = {
+    group <- unique(group_id)
+    is_checked <- isTRUE(status[[group]])
+    sprintf(
+      "<input type='checkbox' class='group-check' data-group='%s'%s>",
+      group,
+      if (is_checked) " checked" else ""
+    )
+  }) %>%
+  ungroup()
+
+# Move group_id to first column
+combined_doctors_display <- combined_doctors_display %>% relocate(group_id, .before = 1)
+
+# Create reactiveVal in server to track updates
+confirmed_groups <- reactiveVal(status)
+```
+
+# Page 1
+
+Column {data-width=100%}
+-----------------------------------------------------------------------
+
+### <span style="font-size: 1.5rem;">GPs who Recently Started Referring</span>
+
+```{r}
+observeEvent(input$group_confirmed, {
+  status <- confirmed_groups()
+  status[[input$group_confirmed$group]] <- input$group_confirmed$checked
+  confirmed_groups(status)
+  save(status, file = "data/confirmed_status.RData")
+})
+
+renderDT({
+   DT::datatable(
+      combined_doctors_display,
+      rownames = FALSE,
+      selection = 'none',
+      options = list(
+         dom = 'Bfrtip',
+         pageLength = 25,
+         scrollX = TRUE,
+         rowGroup = list(dataSrc = 0)
+      ),
+      escape = FALSE,
+      extensions = 'RowGroup'
+   ) %>% htmlwidgets::onRender(
+     "function(el, x) {
+        $(el).on('change', 'input.group-check', function() {
+          var group = $(this).data('group');
+          var checked = $(this).is(':checked');
+          $('input.group-check[data-group=\"' + group + '\"]').prop('checked', checked);
+          Shiny.setInputValue('group_confirmed', { group: group, checked: checked }, { priority: 'event' });
+        });
+     }"
+   )
+}, server = TRUE) -> output$grouped_table
+
+DTOutput("grouped_table")
+```
+
+
+
+
+# Page 2
+
+### Duplicate Doctor Groups
+
+```{r, include=FALSE, echo=FALSE}
+renderUI({
+   group_ids <- sort(unique(combined_doctors$group_id))
+
+   lapply(group_ids, function(group) {
+      group_data <- combined_doctors %>% filter(group_id == group)
+
+      wellPanel(
+         h4(paste("👨‍⚕️ Group", group, "(", nrow(group_data), " entries)")),
+         checkboxInput(paste0("reviewed_", group), "Mark this group as reviewed", value = FALSE),
+         DT::renderDataTable({
+            datatable(
+               group_data,
+               rownames = FALSE,
+               options = list(dom = 'tp', pageLength = 10, scrollX = TRUE),
+               escape = FALSE
+            )
+         })
+      )
+   })
+}) -> output$group_panels
+
+uiOutput("group_panels")
+```
+

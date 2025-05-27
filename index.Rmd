@@ -90,34 +90,3 @@ DTOutput("grouped_table")
 ```
 
 
-
-
-# Page 2
-
-### Duplicate Doctor Groups
-
-```{r, include=FALSE, echo=FALSE}
-renderUI({
-   group_ids <- sort(unique(combined_doctors$group_id))
-
-   lapply(group_ids, function(group) {
-      group_data <- combined_doctors %>% filter(group_id == group)
-
-      wellPanel(
-         h4(paste("👨‍⚕️ Group", group, "(", nrow(group_data), " entries)")),
-         checkboxInput(paste0("reviewed_", group), "Mark this group as reviewed", value = FALSE),
-         DT::renderDataTable({
-            datatable(
-               group_data,
-               rownames = FALSE,
-               options = list(dom = 'tp', pageLength = 10, scrollX = TRUE),
-               escape = FALSE
-            )
-         })
-      )
-   })
-}) -> output$group_panels
-
-uiOutput("group_panels")
-```
-

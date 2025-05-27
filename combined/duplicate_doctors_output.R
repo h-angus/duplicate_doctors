@@ -38,6 +38,7 @@ df_duplicate_doctors <- df_providers_raw %>%
     healthpoint = ""
   ) %>%
   filter(
+    status == 0,
     !grepl("\\bANY\\b|\\bANY GP\\b|outsourced|HOSPITAL|CLINIC|URGENT|MEDICAL CENTER|MEDICAL CENTRE|
             RETIRED|\\bGP\\b|\\bNULL\\b|\\bAUCKLAND\\b|\\bWELLINGTON\\b|DOCTOR|NULL NULL|\\.|\\bUNIT\\b", surname, ignore.case = TRUE),
     !grepl("\\bANY\\b|\\bANY GP\\b|outsourced|HOSPITAL|CLINIC|URGENT|MEDICAL CENTER|MEDICAL CENTRE|
@@ -57,7 +58,7 @@ single_matches <- single_fuzzy_match_hybrid(df_duplicate_doctors, threshold = 0.
 
 # Save this DF
 save(single_matches, file = "data/single_matches.RData")
-load("data/single_matches.RData")
+#load("data/single_matches.RData")
 
 # Remove known not-matches (in either order)
 single_matches_filtered <- single_matches[composite_score >= 0.75]%>%
@@ -66,7 +67,7 @@ single_matches_filtered <- single_matches[composite_score >= 0.75]%>%
 
 save(single_matches_filtered, file = "data/single_matches_filtered.RData")
 
-
+#load("data/single_matches_filtered.RData")
 
 grouped_matches <- group_duplicate_names(single_matches_filtered)
 

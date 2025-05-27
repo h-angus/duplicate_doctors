@@ -1,16 +1,29 @@
+# Load in data from our SQL RProj
 load("data/auckland.RData")
 rm(list = setdiff(ls(), "df_providers_raw"))
 
+# Load required libraries
 library(stringdist)
 library(stringr)
 library(dplyr)
 library(data.table)
 library(readr)
+library(DT)
 
+# Get the single_fuzzy_match_hybrid function loaded
 source("combined/single_fuzzy_hybrid.R")
+
+# Load in the three functions; group_duplicate_names, include_exact_duplicates and review_matches
 source("combined/group_matches.R")
 
-# Normalization function
+# Load our known not matches (Or create)
+if (file.exists("data/known_not_matches.csv")) {
+  known_not_matches <- read_csv("data/known_not_matches.csv", show_col_types = FALSE)
+} else {
+  known_not_matches <- data.frame(Name1 = character(), Name2 = character())
+}
+
+# Normalization function for names
 normalize_name <- function(name) {
   name %>%
     tolower() %>%
@@ -39,11 +52,23 @@ df_duplicate_doctors <- df_providers_raw %>%
   ) %>%
   select(healthpoint, Provider_Name, Clinics, Emails, EDIs)
 
-
+# Run our big compare function and set different thresholds
 single_matches <- single_fuzzy_match_hybrid(df_duplicate_doctors, threshold = 0.5)
-single_matches_small <- single_matches[composite_score >= 0.85]
 
-grouped_matches <- group_duplicate_names(single_matches_small)
+# Save this DF
+save(single_matches, file = "data/single_matches.RData")
+load("data/single_matches.RData")
+
+# Remove known not-matches (in either order)
+single_matches_filtered <- single_matches[composite_score >= 0.75]%>%
+  filter(!(paste(Name1, Name2) %in% paste(known_not_matches$Name1, known_not_matches$Name2) |
+             paste(Name2, Name1) %in% paste(known_not_matches$Name1, known_not_matches$Name2)))
+
+save(single_matches_filtered, file = "data/single_matches_filtered.RData")
+
+
+
+grouped_matches <- group_duplicate_names(single_matches_filtered)
 
 grouped_matches_full <- include_exact_duplicates(grouped_matches, df_duplicate_doctors)
 

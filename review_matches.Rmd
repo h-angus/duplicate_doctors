@@ -1,0 +1,140 @@
+---
+title: "Doctor Duplicate Review"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    self_contained: true
+    theme: 
+      version: 4
+      bootswatch: flatly
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(shiny)
+library(flexdashboard)
+library(DT)
+library(dplyr)
+library(readr)
+
+# Load matches to review
+load("data/single_matches_filtered.RData")  # loads single_matches_filtered
+
+# Load known not matches
+known_not_file <- "data/known_not_matches.csv"
+if (file.exists(known_not_file)) {
+  known_not_matches <- read_csv(known_not_file, show_col_types = FALSE)
+} else {
+  known_not_matches <- data.frame(Name1 = character(), Name2 = character())
+}
+
+# Filter single_matches_filtered using known not matches
+if (nrow(known_not_matches) > 0) {
+  single_matches_filtered <- single_matches_filtered %>%
+    filter(!(paste(Name1, Name2) %in% paste(known_not_matches$Name1, known_not_matches$Name2) |
+             paste(Name2, Name1) %in% paste(known_not_matches$Name1, known_not_matches$Name2)))
+}
+
+# Use reactive values to manage data and display state
+filtered_data <- reactiveVal(single_matches_filtered)
+display_data <- reactiveVal({
+  single_matches_filtered %>%
+    mutate(uid = paste(Name1, Name2, sep = "|")) %>%
+    mutate(Flagged = sprintf("<input type='checkbox' class='bad-check' style='transform: scale(1.5);' data-uid='%s'>", uid)) %>%
+    select(Name1, Name2, composite_score, Flagged)
+})
+
+# Reactive store of bad uids
+bad_uids <- reactiveVal(character())
+
+observeEvent(input$bad_checked, {
+  current <- bad_uids()
+  uid <- input$bad_checked$uid
+  if (input$bad_checked$checked) {
+    bad_uids(unique(c(current, uid)))
+  } else {
+    bad_uids(setdiff(current, uid))
+  }
+})
+
+observeEvent(input$save_bad, {
+  current_data <- filtered_data()
+  uids_to_remove <- bad_uids()
+
+  # Extract match rows based on uid
+  current_data <- current_data %>% mutate(uid = paste(Name1, Name2, sep = "|"))
+  to_remove <- current_data %>% filter(uid %in% uids_to_remove)
+  to_keep <- current_data %>% filter(!uid %in% uids_to_remove)
+
+  # Update known not matches and save filtered data
+  new_bad <- to_remove %>% select(Name1, Name2)
+  existing <- if (file.exists(known_not_file)) read_csv(known_not_file, show_col_types = FALSE) else data.frame(Name1 = character(), Name2 = character())
+  updated <- bind_rows(existing, new_bad) %>% distinct(Name1, Name2)
+  write_csv(updated, known_not_file)
+  known_not_matches <- updated
+  single_matches_filtered <- to_keep
+  save(single_matches_filtered, file = "data/single_matches_filtered.RData")
+
+  # Update state
+  filtered_data(to_keep)
+  display_data(to_keep %>%
+    mutate(uid = paste(Name1, Name2, sep = "|")) %>%
+    mutate(Flagged = sprintf("<input type='checkbox' class='bad-check' style='transform: scale(1.5);' data-uid='%s'>", uid)) %>%
+    select(Name1, Name2, composite_score, Flagged))
+
+  bad_uids(character())
+  showNotification("✅ Bad matches saved and removed", type = "message")
+})
+```
+
+# Review Potential Bad Matches
+
+Column {data-width=95%}
+-----------------------------------------------------------------------
+
+### 🧠 Flag Incorrect Matches
+
+```{r}
+renderDT({
+  datatable(
+    display_data(),
+    class = 'stripe hover cell-border',
+    rownames = FALSE,
+    escape = FALSE,
+    selection = 'none',
+    options = list(
+      pageLength = 25,
+      scrollX = TRUE,
+      order = list(list(2, 'asc')),
+      columnDefs = list(
+        list(targets = 3, orderable = TRUE),
+        list(targets = 0, width = '12%'),
+        list(targets = 1, width = '12%'),
+        list(targets = 2, width = '10%')
+      )
+    )
+  ) %>%
+  formatStyle(columns = 1:2, `font-size` = '20px') %>%
+  htmlwidgets::onRender("
+    function(el, x) {
+      $(el).on('change', 'input.bad-check', function() {
+        var uid = $(this).data('uid');
+        var checked = $(this).is(':checked');
+        Shiny.setInputValue('bad_checked', { uid: uid, checked: checked }, { priority: 'event' });
+      });
+    }
+  ")
+}, server = TRUE) -> output$match_table
+
+DTOutput("match_table")
+```
+
+Column {data-width=5%}
+-----------------------------------------------------------------------
+
+### 📂 Save Selected Bad Matches
+
+```{r}
+actionButton("save_bad", "💾 Save Bad Matches")
+```

@@ -54,3 +54,45 @@ include_exact_duplicates <- function(grouped_matches, df_duplicate_doctors) {
   grouped_matches_full <- bind_rows(grouped_matches, new_groups)
   return(grouped_matches_full)
 }
+
+
+
+review_matches <- function(run = FALSE,
+                           match_df,
+                           known_not_matches,
+                           known_not_matches_file) {
+  if (!run) return(match_df)
+  
+  cat("📋 Displaying possible matches for manual review...\n")
+  print(
+    DT::datatable(
+      match_df %>% dplyr::arrange(dplyr::desc(composite_score)),
+      rownames = TRUE,
+      options = list(pageLength = 20, scrollX = TRUE)
+    )
+  )
+  
+  readline(prompt = "\n👀 Review complete? Press [Enter] to continue...")
+  
+  bad_indices <- readline(prompt = "🛑 Enter indices of BAD matches (e.g., c(1, 3, 5)): ")
+  bad_indices <- tryCatch(eval(parse(text = bad_indices)), error = function(e) integer(0))
+  
+  if (length(bad_indices) == 0) {
+    cat("✅ No bad matches entered. Proceeding.\n")
+    return(match_df)
+  }
+  
+  bad_matches <- match_df[bad_indices, c("Name1", "Name2")]
+  
+  updated_known <- dplyr::bind_rows(known_not_matches, bad_matches) %>%
+    dplyr::distinct(Name1, Name2)
+  
+  readr::write_csv(updated_known, known_not_matches_file)
+  
+  cat("❌ Removed", nrow(bad_matches), "bad matches and updated known_not_matches.csv\n")
+  
+  # Return filtered match_df
+  match_df[-bad_indices, ]
+}
+
+

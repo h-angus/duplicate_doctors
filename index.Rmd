@@ -16,10 +16,13 @@ library(flexdashboard)
 library(shiny)
 library(DT)
 library(dplyr)
+library(shinyjs)
 
 # Set login password
 correct_password <- "1234"
 creds <- reactiveValues(authenticated = FALSE)
+
+sessions_file <- "/opt/shiny/sessions.csv"
 
 # Load confirmed status if available
 status <- list()
@@ -51,6 +54,38 @@ combined_doctors_display <- combined_doctors_display %>% relocate(group_id, .bef
 confirmed_groups <- reactiveVal(status)
 ```
 
+```{r js-cookie-check, echo=FALSE}
+tags$script(HTML("
+   var match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
+   if (match) {
+      Shiny.setInputValue('cookie_token', match[2], {priority: 'event'});
+   }
+"))
+```
+
+```{r cookie-login-check, echo=FALSE}
+observeEvent(input$cookie_token, {
+   token <- input$cookie_token
+
+   sessions <- tryCatch(read.csv(sessions_file, header = FALSE), error = function(e) NULL)
+   if (!is.null(sessions) && ncol(sessions) == 3) {
+      colnames(sessions) <- c("user", "token", "time")
+      sessions$time <- as.POSIXct(sessions$time)
+
+      matched <- sessions[sessions$token == token & difftime(Sys.time(), sessions$time, units = "secs") < 86400, ]
+      if (nrow(matched) > 0) {
+         creds$authenticated <- TRUE
+         creds$username <- matched$user
+      } else {
+         runjs("window.location.href = '/dashboard'")  # 🔁 Redirect to home if invalid
+      }
+   } else {
+      runjs("window.location.href = '/dashboard'")  # 🔁 Redirect if file unreadable
+   }
+})
+```
+
+
 # Page 1
 
 Column {data-width=100%}
@@ -60,13 +95,9 @@ Column {data-width=100%}
 
 ```{r, echo=FALSE}
 output$dashboard_content <- renderUI({
+  useShinyjs()
   if (!creds$authenticated) {
-    tagList(
-      h3("🔒 Please enter the password"),
-      passwordInput("password", NULL),
-      actionButton("login", "Login"),
-      textOutput("login_result")
-    )
+    return(NULL)
   } else {
     observeEvent(input$group_confirmed, {
       status <- confirmed_groups()
@@ -101,14 +132,6 @@ output$dashboard_content <- renderUI({
     }, server = TRUE) -> output$grouped_table
 
     DTOutput("grouped_table")
-  }
-})
-
-observeEvent(input$login, {
-  if (input$password == correct_password) {
-    creds$authenticated <- TRUE
-  } else {
-    output$login_result <- renderText("❌ Incorrect password.")
   }
 })
 ```

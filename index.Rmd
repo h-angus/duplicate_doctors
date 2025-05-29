@@ -87,6 +87,7 @@ observeEvent(input$cookie_token, {
 
 ```{r force-redirect-if-not-authenticated, echo=FALSE}
 output$auth_check <- renderUI({
+  useShinyjs()
    if (!creds$authenticated) {
       tags$script(HTML("window.location.href = '/dashboard';"))
    } else {
@@ -109,7 +110,6 @@ Column {data-width=100%}
 
 ```{r, echo=FALSE}
 output$dashboard_content <- renderUI({
-  useShinyjs()
   if (!creds$authenticated) {
     return(NULL)
   } else {

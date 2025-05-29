@@ -95,6 +95,10 @@ output$auth_check <- renderUI({
 })
 ```
 
+```{r redirect run}
+uiOutput("auth_check")
+```
+
 
 # Page 1
 

@@ -128,7 +128,6 @@ htmltools::tags$style(HTML("
 "))
 
 ```
-
 ```{r js-cookie-check, echo=FALSE}
 tags$script(HTML("
    var match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
@@ -147,7 +146,7 @@ observeEvent(input$cookie_token, {
       colnames(sessions) <- c("user", "token", "time")
       sessions$time <- as.POSIXct(sessions$time)
 
-      matched <- sessions[sessions$token == token & difftime(Sys.time(), sessions$time, units = "secs") < 86400, ]
+      matched <- sessions[sessions$token == token & difftime(Sys.time(), sessions$time, units = "secs") < 43200, ]
       if (nrow(matched) > 0) {
          creds$authenticated <- TRUE
          creds$username <- matched$user
@@ -166,7 +165,7 @@ output$auth_check <- renderUI({
    if (!creds$authenticated) {
       tags$script(HTML("window.location.href = '/dashboard';"))
    } else {
-      NULL
+     NULL
    }
 })
 ```
@@ -174,7 +173,6 @@ output$auth_check <- renderUI({
 ```{r redirect run}
 uiOutput("auth_check")
 ```
-
 
 #
 

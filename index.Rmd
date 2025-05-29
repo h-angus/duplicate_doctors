@@ -104,7 +104,8 @@ htmltools::tags$style(HTML("
   }
   
   .navbar .navbar-brand {
-     fisplay: none;
+     font-size:1.3rem;
+     font-weight:bold
   }
 
 "))
@@ -175,7 +176,7 @@ uiOutput("auth_check")
 ```
 
 
-# Page 1
+#
 
 Column {data-width=100%}
 -----------------------------------------------------------------------

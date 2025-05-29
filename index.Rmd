@@ -22,6 +22,8 @@ library(dplyr)
 library(shinyjs)
 
 sessions_file <- "/opt/shiny/sessions.csv"
+correct_password <- Sys.getenv("DASHBOARD_PASSWORD")
+creds <- reactiveValues(authenticated = FALSE)
 
 # Load confirmed status if available
 status <- list()

@@ -16,13 +16,18 @@ library(flexdashboard)
 library(shiny)
 library(DT)
 library(dplyr)
-load("data/combined_doctors.RData")
+
+# Set login password
+correct_password <- "1234"
+creds <- reactiveValues(authenticated = FALSE)
 
 # Load confirmed status if available
 status <- list()
 if (file.exists("data/confirmed_status.RData")) {
   load("data/confirmed_status.RData")
 }
+
+load("data/combined_doctors.RData")
 
 # Format group_id safely and apply saved checkbox state
 combined_doctors_display <- combined_doctors %>%
@@ -53,40 +58,66 @@ Column {data-width=100%}
 
 ### <span style="font-size: 1.5rem;">GPs who Recently Started Referring</span>
 
-```{r}
-observeEvent(input$group_confirmed, {
-  status <- confirmed_groups()
-  status[[input$group_confirmed$group]] <- input$group_confirmed$checked
-  confirmed_groups(status)
-  save(status, file = "data/confirmed_status.RData")
+```{r, echo=FALSE}
+output$dashboard_content <- renderUI({
+  if (!creds$authenticated) {
+    tagList(
+      h3("🔒 Please enter the password"),
+      passwordInput("password", NULL),
+      actionButton("login", "Login"),
+      textOutput("login_result")
+    )
+  } else {
+    observeEvent(input$group_confirmed, {
+      status <- confirmed_groups()
+      status[[input$group_confirmed$group]] <- input$group_confirmed$checked
+      confirmed_groups(status)
+      save(status, file = "data/confirmed_status.RData")
+    })
+
+    renderDT({
+      DT::datatable(
+        combined_doctors_display,
+        rownames = FALSE,
+        selection = 'none',
+        options = list(
+          dom = 'Bfrtip',
+          pageLength = 25,
+          scrollX = TRUE,
+          rowGroup = list(dataSrc = 0)
+        ),
+        escape = FALSE,
+        extensions = 'RowGroup'
+      ) %>% htmlwidgets::onRender(
+        "function(el, x) {
+          $(el).on('change', 'input.group-check', function() {
+            var group = $(this).data('group');
+            var checked = $(this).is(':checked');
+            $('input.group-check[data-group=\"' + group + '\"]').prop('checked', checked);
+            Shiny.setInputValue('group_confirmed', { group: group, checked: checked }, { priority: 'event' });
+          });
+        }"
+      )
+    }, server = TRUE) -> output$grouped_table
+
+    DTOutput("grouped_table")
+  }
 })
 
-renderDT({
-   DT::datatable(
-      combined_doctors_display,
-      rownames = FALSE,
-      selection = 'none',
-      options = list(
-         dom = 'Bfrtip',
-         pageLength = 25,
-         scrollX = TRUE,
-         rowGroup = list(dataSrc = 0)
-      ),
-      escape = FALSE,
-      extensions = 'RowGroup'
-   ) %>% htmlwidgets::onRender(
-     "function(el, x) {
-        $(el).on('change', 'input.group-check', function() {
-          var group = $(this).data('group');
-          var checked = $(this).is(':checked');
-          $('input.group-check[data-group=\"' + group + '\"]').prop('checked', checked);
-          Shiny.setInputValue('group_confirmed', { group: group, checked: checked }, { priority: 'event' });
-        });
-     }"
-   )
-}, server = TRUE) -> output$grouped_table
-
-DTOutput("grouped_table")
+observeEvent(input$login, {
+  if (input$password == correct_password) {
+    creds$authenticated <- TRUE
+  } else {
+    output$login_result <- renderText("❌ Incorrect password.")
+  }
+})
 ```
+
+```{r}
+uiOutput("dashboard_content")
+```
+
+
+
 
 

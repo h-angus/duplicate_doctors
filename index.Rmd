@@ -86,15 +86,18 @@ observeEvent(input$cookie_token, {
 ```
 
 ```{r force-redirect-if-not-authenticated, echo=FALSE}
-renderUI({
-   useShinyjs()  # Ensure JS context is available
+output$auth_check <- renderUI({
    if (!creds$authenticated) {
-      runjs("window.location.href = '/dashboard'")
+      tags$script(HTML("window.location.href = '/dashboard';"))
+   } else {
+      NULL
    }
-   return(NULL)
 })
 ```
 
+```{r redirect run}
+uiOutput("auth_check")
+```
 
 
 # Page 1

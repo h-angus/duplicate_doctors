@@ -2,6 +2,9 @@
 title: "Doctor Duplicate Review"
 output: 
   flexdashboard::flex_dashboard:
+    favicon: favicon.png
+    logo: logo.png
+    source_code: embed
     orientation: columns
     vertical_layout: fill
     self_contained: true
@@ -17,10 +20,6 @@ library(shiny)
 library(DT)
 library(dplyr)
 library(shinyjs)
-
-# Set login password
-correct_password <- "1234"
-creds <- reactiveValues(authenticated = FALSE)
 
 sessions_file <- "/opt/shiny/sessions.csv"
 
@@ -52,6 +51,79 @@ combined_doctors_display <- combined_doctors_display %>% relocate(group_id, .bef
 
 # Create reactiveVal in server to track updates
 confirmed_groups <- reactiveVal(status)
+```
+
+```{r css setup, echo=FALSE, results='asis'}
+
+htmltools::tags$style(HTML("
+  .navbar .navbar-brand {
+    font-size: 1.4rem;
+    font-weight:bold;
+  }
+"))
+
+# General adjusting for CSS ect.
+htmltools::tags$style(HTML("
+  html, body {
+    height: 93vh;
+    margin: 0;
+    padding: 0;
+    padding-top: 5.5vh !important;
+    padding-left: 0.1vw !important;
+    padding-right: 0.1vw !important;
+  }
+
+  .navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 10vh !important;
+    min-height: 10vh !important;
+    max-height: 10vh !important;
+    z-index: 1000;
+    box-sizing: border-box;
+  }
+
+  .main-container {
+    position: absolute;
+    top: 10vh;
+    right: 0;
+    height: 90vh;
+    overflow-y: auto;
+    padding: 1rem;
+    box-sizing: border-box;
+  }
+  
+  .navbar-logo {
+     height: 4vh !important;
+     width: auto !important;
+     padding-right: 0.2vw !important;
+  }
+  
+  .navbar .navbar-brand {
+     fisplay: none;
+  }
+
+"))
+
+htmltools::tags$style(HTML("
+  .dataTables_wrapper {
+    box-sizing: border-box;
+    padding-right: 0.5rem;
+  }
+
+  table.dataTable {
+    width: 100% !important;
+  }
+"))
+
+htmltools::tags$style(HTML("
+  .flowing-content-shim {
+    overflow: hidden !important;
+  }
+"))
+
 ```
 
 ```{r js-cookie-check, echo=FALSE}

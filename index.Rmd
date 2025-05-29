@@ -128,6 +128,7 @@ htmltools::tags$style(HTML("
 "))
 
 ```
+
 ```{r js-cookie-check, echo=FALSE}
 tags$script(HTML("
    var match = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));

@@ -85,6 +85,14 @@ observeEvent(input$cookie_token, {
 })
 ```
 
+```{r force-redirect-if-not-authenticated, echo=FALSE}
+observe({
+   if (!creds$authenticated) {
+      runjs("window.location.href = '/dashboard'")
+   }
+})
+```
+
 
 # Page 1
 
